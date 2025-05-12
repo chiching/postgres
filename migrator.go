@@ -3,9 +3,10 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"regexp"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -182,7 +183,7 @@ func (m Migrator) DropIndex(value interface{}, name string) error {
 
 func (m Migrator) GetTables() (tableList []string, err error) {
 	currentSchema, _ := m.CurrentSchema(m.DB.Statement, "")
-	return tableList, m.queryRaw("SELECT table_name FROM information_schema.tables WHERE table_schema = ? AND table_type = ?", currentSchema, "BASE TABLE").Scan(&tableList).Error
+	return tableList, m.queryRaw("SELECT table_name FROM information_schema.tables WHERE table_schema::text = ? AND table_type = ?", currentSchema, "BASE TABLE").Scan(&tableList).Error
 }
 
 func (m Migrator) CreateTable(values ...interface{}) (err error) {
