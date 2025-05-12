@@ -217,7 +217,7 @@ func (m Migrator) HasTable(value interface{}) bool {
 	var count int64
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		currentSchema, curTable := m.CurrentSchema(stmt, stmt.Table)
-		return m.queryRaw("SELECT count(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ? AND table_type = ?", currentSchema, curTable, "BASE TABLE").Scan(&count).Error
+		return m.queryRaw("SELECT count(*) FROM information_schema.tables WHERE table_schema::text = ? AND table_name = ? AND table_type = ?", currentSchema, curTable, "BASE TABLE").Scan(&count).Error
 	})
 	return count > 0
 }
@@ -270,7 +270,7 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 
 		currentSchema, curTable := m.CurrentSchema(stmt, stmt.Table)
 		return m.queryRaw(
-			"SELECT count(*) FROM INFORMATION_SCHEMA.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?",
+			"SELECT count(*) FROM INFORMATION_SCHEMA.columns WHERE table_schema::text = ? AND table_name = ? AND column_name = ?",
 			currentSchema, curTable, name,
 		).Scan(&count).Error
 	})
@@ -291,7 +291,7 @@ func (m Migrator) MigrateColumn(value interface{}, field *schema.Field, columnTy
 		currentSchema, curTable := m.CurrentSchema(stmt, stmt.Table)
 		values := []interface{}{currentSchema, curTable, field.DBName, stmt.Table, currentSchema}
 		checkSQL := "SELECT description FROM pg_catalog.pg_description "
-		checkSQL += "WHERE objsubid = (SELECT ordinal_position FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?) "
+		checkSQL += "WHERE objsubid = (SELECT ordinal_position FROM information_schema.columns WHERE table_schema::text = ? AND table_name = ? AND column_name = ?) "
 		checkSQL += "AND objoid = (SELECT oid FROM pg_catalog.pg_class WHERE relname = ? AND relnamespace = "
 		checkSQL += "(SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = ?))"
 		m.queryRaw(checkSQL, values...).Scan(&description)
@@ -449,7 +449,7 @@ func (m Migrator) HasConstraint(value interface{}, name string) bool {
 		currentSchema, curTable := m.CurrentSchema(stmt, table)
 
 		return m.queryRaw(
-			"SELECT count(*) FROM INFORMATION_SCHEMA.table_constraints WHERE table_schema = ? AND table_name = ? AND constraint_name = ?",
+			"SELECT count(*) FROM INFORMATION_SCHEMA.table_constraints WHERE table_schema::text = ? AND table_name = ? AND constraint_name = ?",
 			currentSchema, curTable, name,
 		).Scan(&count).Error
 	})
@@ -537,7 +537,7 @@ func (m Migrator) ColumnTypes(value interface{}) (columnTypes []gorm.ColumnType,
 
 		// check primary, unique field
 		{
-			columnTypeRows, err := m.queryRaw("SELECT constraint_name FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_catalog, table_name, constraint_name) JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema AND tc.table_name = c.table_name AND ccu.column_name = c.column_name WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE') AND c.table_catalog = ? AND c.table_schema = ? AND c.table_name = ? AND constraint_type = ?", currentDatabase, currentSchema, table, "UNIQUE").Rows()
+			columnTypeRows, err := m.queryRaw("SELECT constraint_name FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_catalog, table_name, constraint_name) JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema AND tc.table_name = c.table_name AND ccu.column_name = c.column_name WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE') AND c.table_catalog = ? AND c.table_schema::text = ? AND c.table_name = ? AND constraint_type = ?", currentDatabase, currentSchema, table, "UNIQUE").Rows()
 			if err != nil {
 				return err
 			}
@@ -549,7 +549,7 @@ func (m Migrator) ColumnTypes(value interface{}) (columnTypes []gorm.ColumnType,
 			}
 			columnTypeRows.Close()
 
-			columnTypeRows, err = m.queryRaw("SELECT c.column_name, constraint_name, constraint_type FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_catalog, table_name, constraint_name) JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema AND tc.table_name = c.table_name AND ccu.column_name = c.column_name WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE') AND c.table_catalog = ? AND c.table_schema = ? AND c.table_name = ?", currentDatabase, currentSchema, table).Rows()
+			columnTypeRows, err = m.queryRaw("SELECT c.column_name, constraint_name, constraint_type FROM information_schema.table_constraints tc JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_catalog, table_name, constraint_name) JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema AND tc.table_name = c.table_name AND ccu.column_name = c.column_name WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE') AND c.table_catalog = ? AND c.table_schema:text = ? AND c.table_name = ?", currentDatabase, currentSchema, table).Rows()
 			if err != nil {
 				return err
 			}
